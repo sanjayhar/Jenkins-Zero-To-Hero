@@ -1,7 +1,7 @@
 pipeline {
   agent {
     docker {
-      image 'sanjayharish/maven-docker-agent:v1' // ✅ You can customize this if you have your own Docker agent
+      image 'sanjayharish/maven-docker-agent:v1'
       args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
@@ -9,12 +9,13 @@ pipeline {
   environment {
     PROJECT_DIR = 'java-maven-sonar-argocd-helm-k8s/spring-boot-app'
     SONAR_URL = "http://54.172.169.91:9000"
-    DOCKER_IMAGE = "sanjayharish/my-spring-app:${BUILD_NUMBER}" // ✅ Your DockerHub image
+    DOCKER_IMAGE = "sanjayharish/my-spring-app:${BUILD_NUMBER}"
     GIT_REPO_NAME = "Jenkins-Zero-To-Hero"
     GIT_USER_NAME = "sanjayhar"
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         echo "✅ Code checked out"
@@ -48,11 +49,9 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
           dir("${env.PROJECT_DIR}") {
             sh '''
-              echo "🔨 Building Docker image: $DOCKER_IMAGE"
               docker build -t $DOCKER_IMAGE .
               echo $PASSWORD | docker login -u $USERNAME --password-stdin
               docker push $DOCKER_IMAGE
-              docker logout
             '''
           }
         }
@@ -65,12 +64,9 @@ pipeline {
           sh '''
             git config user.email "sanjay@example.com"
             git config user.name "Sanjay Harish"
-
-            echo "🛠️ Updating deployment file with image tag ${BUILD_NUMBER}"
-            sed -i "s|replaceImageTag|${BUILD_NUMBER}|g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
             git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "⚠️ No changes to commit"
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
           '''
         }
